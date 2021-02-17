@@ -3,7 +3,7 @@ package com.petproject.domain;
 import java.util.BitSet;
 import java.util.stream.IntStream;
 
-public class BitSolution extends BitSet {
+public class BitSolution extends BitSet implements Comparable<BitSolution> {
 
     private final int maxBits;
 
@@ -53,6 +53,10 @@ public class BitSolution extends BitSet {
         return part;
     }
 
+    public String fullInfo() {
+        return String.format("{v: %2d, b: %s}", getValue(), toString());
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder(maxBits);
@@ -60,8 +64,9 @@ public class BitSolution extends BitSet {
         return sb.reverse().toString();
     }
 
-    public String fullInfo() {
-        return String.format("{v: %2d, b: %s}", getValue(), toString());
+    @Override
+    public int compareTo(BitSolution o) {
+        return Integer.compare(o.getValue(), getValue());
     }
 
 }

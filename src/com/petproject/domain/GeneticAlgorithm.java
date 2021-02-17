@@ -11,12 +11,14 @@ import static com.petproject.util.Util.print;
 
 public class GeneticAlgorithm {
 
-    private final List<BitSolution> solutions;
     private final int mutationChance;
+    private final int population;
+    private final List<BitSolution> solutions;
 
-    public GeneticAlgorithm(List<BitSolution> solutions, int mutationChance) {
+    public GeneticAlgorithm(List<BitSolution> solutions, int mutationChance, int population) {
         this.solutions = solutions;
         this.mutationChance = mutationChance;
+        this.population = population;
     }
 
     public void run() {
@@ -43,6 +45,20 @@ public class GeneticAlgorithm {
         print("\nМутация новых \"Решений\":");
         List<BitSolution> mutated = mutation(crossedSolutions);
         mutated.forEach(s -> print("%s ", s.fullInfo()));
+
+        // Шаг 5 - Расширение популяции за счет новых решений
+        print("\nРасширенная популяция за счет новых \"Решений\":");
+        List<BitSolution> expanded = expansion(mutated);
+        expanded.forEach(s -> print("%s ", s.fullInfo()));
+
+        // Шаг 6 - Сокращение расширенной популяции до исходного размера
+        print("\nСокращенная популяция до исходных размеров \"Решений\":");
+        List<BitSolution> reduced = reduction(expanded);
+        reduced.forEach(s -> print("%s ", s.fullInfo()));
+
+        // Шаг 6.1 - Качество популяции
+        int populationQuality = quality(reduced);
+        print("\nКачество популяции: %d", populationQuality);
     }
 
     /**
@@ -86,6 +102,31 @@ public class GeneticAlgorithm {
         return solutions.stream()
                 .map(s -> shouldMutate.test(s) ? mutate.apply(s) : s)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Расширение популяции за счет новых решений
+     */
+    private List<BitSolution> expansion(List<BitSolution> newSolutions) {
+        solutions.addAll(newSolutions);
+        return solutions;
+    }
+
+    /**
+     * Сокращение расширенной популяции до исходного размера
+     */
+    private List<BitSolution> reduction(List<BitSolution> expandedSolutions) {
+        // Сортировка решений в нисходящем порядке по значению
+        Collections.sort(expandedSolutions);
+        // Выборка первых
+        return expandedSolutions.stream().limit(population).collect(Collectors.toList());
+    }
+
+    /**
+     * Качество популяции
+     */
+    private int quality(List<BitSolution> reducedSolutions) {
+        return reducedSolutions.stream().map(BitSolution::getValue).reduce(Integer::sum).orElse(0);
     }
 
     private Stack<BitSolution> shuffledStack(List<BitSolution> solutions) {

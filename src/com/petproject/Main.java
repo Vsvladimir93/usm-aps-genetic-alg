@@ -57,7 +57,7 @@ public class Main {
 
 
     private static void start() {
-        GeneticAlgorithm ga = new GeneticAlgorithm(solutions, mutationChance);
+        GeneticAlgorithm ga = new GeneticAlgorithm(solutions, mutationChance, population);
         ga.run();
     }
 
