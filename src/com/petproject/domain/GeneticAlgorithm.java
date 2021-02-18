@@ -1,8 +1,9 @@
 package com.petproject.domain;
 
+import com.petproject.util.Util;
+
 import java.util.*;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -12,24 +13,51 @@ import static com.petproject.util.Util.print;
 public class GeneticAlgorithm {
 
     private final int mutationChance;
-    private final int population;
+    private final int populationQuantity;
+    private final int maxGenerations;
+    private final int qualityUpperBound;
+
+    private final Function<BitSolution, Integer> function;
+
     private final List<BitSolution> solutions;
 
-    public GeneticAlgorithm(List<BitSolution> solutions, int mutationChance, int population) {
+    private int currentGeneration;
+
+    public GeneticAlgorithm(List<BitSolution> solutions, Function<Integer, Integer> function, int mutationChance, int populationQuantity, int maxGenerations, int qualityUpperBound) {
         this.solutions = solutions;
         this.mutationChance = mutationChance;
-        this.population = population;
+        this.populationQuantity = populationQuantity;
+        this.maxGenerations = maxGenerations;
+        this.qualityUpperBound = qualityUpperBound == 0 ? Integer.MAX_VALUE : qualityUpperBound;
+        this.function = s -> function.apply(s.getValue());
     }
 
     public void run() {
+        currentGeneration = 0;
+
+        List<BitSolution> result = cycle(solutions);
+
+        print("\nПоколение: %d", currentGeneration);
+        print("\nИтоговая популяция:");
+        result.forEach(s -> print(s.fullInfo()));
+
+        Optional<BitSolution> best = findBest(result);
+        if (best.isPresent()) {
+            int bestQuality = best.map(function).orElse(0);
+            print("\nЛучшее Решение: %s - f(x) -> %d", best.get().fullInfo(), bestQuality);
+        }
+    }
+
+    private List<BitSolution> cycle(List<BitSolution> solutions) {
+        ++currentGeneration;
 
         // Шаг 1 - Визуализация начальных решений
-        print("\nНачальная популяция \"Решений\":");
+        print("\nПопуляция \"Решений\" номер: %d", currentGeneration);
         solutions.forEach(s -> print("%s ", s.fullInfo()));
 
         // Шаг 2 - Случайная выборка пар решений
         List<Pair<BitSolution>> randomPairs = selection(solutions);
-        print("\nПервая выборка случайных пар \"Решений\":");
+        print("\nВыборка случайных пар \"Решений\":");
         randomPairs.forEach((pair) -> print(
                 "Пара: %s | %s",
                 pair.getFirst().fullInfo(),
@@ -41,14 +69,14 @@ public class GeneticAlgorithm {
         print("\nСкрещенные потомки:");
         crossedSolutions.forEach((child) -> print(child.fullInfo()));
 
-        // Шаг 4 - Мутация новых Решений
+        // Шаг 4 - Мутация новых решений
         print("\nМутация новых \"Решений\":");
         List<BitSolution> mutated = mutation(crossedSolutions);
         mutated.forEach(s -> print("%s ", s.fullInfo()));
 
         // Шаг 5 - Расширение популяции за счет новых решений
         print("\nРасширенная популяция за счет новых \"Решений\":");
-        List<BitSolution> expanded = expansion(mutated);
+        List<BitSolution> expanded = expansion(mutated, solutions);
         expanded.forEach(s -> print("%s ", s.fullInfo()));
 
         // Шаг 6 - Сокращение расширенной популяции до исходного размера
@@ -57,8 +85,22 @@ public class GeneticAlgorithm {
         reduced.forEach(s -> print("%s ", s.fullInfo()));
 
         // Шаг 6.1 - Качество популяции
-        int populationQuality = quality(reduced);
-        print("\nКачество популяции: %d", populationQuality);
+        int populationQuality = qualityAll(reduced);
+        print("\nКачество популяции: %d (среднее значение)", populationQuality);
+
+        Optional<BitSolution> best = findBest(reduced);
+        int bestQuality = best.map(function).orElse(0);
+        print("Лучшее Решение: %s", bestQuality);
+
+        List<String> qualityEach = calculateQualityForEach(reduced);
+        qualityEach.forEach(Util::print);
+
+        // Шаг 7 - Проверка - Хоть один из критериев завершения выполняется ?
+        boolean isCompleteResult = isComplete(reduced, bestQuality);
+        print("\nПроверка - Хоть один из критериев завершения выполняется? - %s", isCompleteResult  ? "Да" : "Нет");
+
+        // Если выполняется проверка - выход из рекурсии. Иначе решения проходят следующий цикл.
+        return isCompleteResult ? reduced : cycle(reduced);
     }
 
     /**
@@ -92,41 +134,75 @@ public class GeneticAlgorithm {
      */
     private List<BitSolution> mutation(List<BitSolution> solutions) {
         // Высчитывает шанс мутации
-        Predicate<BitSolution> shouldMutate = s -> (getRandom().nextInt(100) + 1) <= mutationChance;
-        // Инвертирует случайный бит
-        Function<BitSolution, BitSolution> mutate = s -> {
-            s.flip(getRandom().nextInt(s.getMaxBits()));
-            return s;
-        };
+        boolean shouldMutate = (getRandom().nextInt(100) + 1) <= mutationChance;
 
-        return solutions.stream()
-                .map(s -> shouldMutate.test(s) ? mutate.apply(s) : s)
-                .collect(Collectors.toList());
+        if (shouldMutate) {
+            // Находит случайное Решение
+            BitSolution s = solutions.get(getRandom().nextInt(solutions.size()));
+            // Инвертирует случайный бит
+            s.flip(getRandom().nextInt(s.getMaxBits()));
+        }
+
+        return solutions;
     }
 
     /**
      * Расширение популяции за счет новых решений
      */
-    private List<BitSolution> expansion(List<BitSolution> newSolutions) {
-        solutions.addAll(newSolutions);
-        return solutions;
+    private List<BitSolution> expansion(List<BitSolution> newSolutions, List<BitSolution> originSolutions) {
+        originSolutions.addAll(newSolutions);
+        return originSolutions;
     }
 
     /**
      * Сокращение расширенной популяции до исходного размера
      */
     private List<BitSolution> reduction(List<BitSolution> expandedSolutions) {
-        // Сортировка решений в нисходящем порядке по значению
-        Collections.sort(expandedSolutions);
+        // Сортировка решений в нисходящем порядке по результату вычисления функции
+        Comparator<BitSolution> compare = (a, b) -> function.apply(b) - function.apply(a);
+        expandedSolutions.sort(compare);
+
         // Выборка первых
-        return expandedSolutions.stream().limit(population).collect(Collectors.toList());
+        return expandedSolutions.stream().limit(populationQuantity).collect(Collectors.toList());
     }
 
     /**
      * Качество популяции
      */
-    private int quality(List<BitSolution> reducedSolutions) {
-        return reducedSolutions.stream().map(BitSolution::getValue).reduce(Integer::sum).orElse(0);
+    private int qualityAll(List<BitSolution> reducedSolutions) {
+        return reducedSolutions.stream().map(function).reduce(Integer::sum).orElse(0) / populationQuantity;
+    }
+
+    /**
+     * Качество каждой особи
+     */
+    private List<String> calculateQualityForEach(List<BitSolution> reducedSolutions) {
+        Function<BitSolution, String> calculate = s -> s.fullInfo()
+                .concat(" - f(x) -> " + function.apply(s));
+        return reducedSolutions.stream().map(calculate).collect(Collectors.toList());
+
+    }
+
+    /**
+     * Проверка - Хоть один из критериев завершения выполняется ?
+     */
+    private boolean isComplete(List<BitSolution> reduced, int bestQuality) {
+        if (currentGeneration >= maxGenerations) {
+            return true;
+        } else if (bestQuality != 0 && bestQuality >= qualityUpperBound) {
+            return true;
+
+            // Возвращает true если все элементы коллекции одинаковые
+        } else return reduced.isEmpty()
+                || reduced.stream()
+                .map(BitSolution::getValue)
+                .allMatch(v -> v == reduced.get(0).getValue());
+    }
+
+    private Optional<BitSolution> findBest(List<BitSolution> reducedSolutions) {
+        Comparator<BitSolution> compare = (a, b) -> function.apply(b) - function.apply(a);
+        reducedSolutions.sort(compare);
+        return reducedSolutions.stream().findFirst();
     }
 
     private Stack<BitSolution> shuffledStack(List<BitSolution> solutions) {
@@ -146,8 +222,12 @@ public class GeneticAlgorithm {
         // Создание первого потомка с помощью операции or
         // из первой части первого предка
         // и второй части второго предка
-        first.or(pair.getFirst().getPart(0, randomDelimiter));
-        first.or(pair.getSecond().getPart(randomDelimiter, pair.getSecond().getMaxBits()));
+        first.setPart(pair.getFirst().getPart(0, randomDelimiter), 0, randomDelimiter);
+        first.setPart(
+                pair.getSecond().getPart(randomDelimiter, pair.getSecond().getMaxBits()),
+                randomDelimiter,
+                pair.getSecond().getMaxBits()
+        );
 
         randomDelimiter = getRandom().nextInt(pair.getFirst().getMaxBits() - 2) + 1;
 
@@ -155,8 +235,12 @@ public class GeneticAlgorithm {
         // Создание второго потомка с помощью операции or
         // из второй части первого предка
         // и первой части второго предка
-        second.or(pair.getFirst().getPart(randomDelimiter, pair.getFirst().getMaxBits()));
-        second.or(pair.getSecond().getPart(0, randomDelimiter));
+        second.setPart(
+                pair.getFirst().getPart(randomDelimiter, pair.getFirst().getMaxBits()),
+                randomDelimiter,
+                pair.getFirst().getMaxBits()
+        );
+        second.setPart(pair.getSecond().getPart(0, randomDelimiter), 0, randomDelimiter);
 
         return new Pair<>(first, second);
     }

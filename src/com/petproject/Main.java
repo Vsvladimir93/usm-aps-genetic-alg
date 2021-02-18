@@ -3,63 +3,47 @@ package com.petproject;
 import com.petproject.domain.BitSolution;
 import com.petproject.domain.GeneticAlgorithm;
 import com.petproject.domain.SolutionGenerator;
-import com.petproject.util.Util;
 
 import java.util.List;
-import java.util.Scanner;
+import java.util.function.Function;
 
 public class Main {
 
-    private static int maxBits = 6;
+    private static final int maxBits = 6;
+    private static final int solutionUpperBound = 1 << maxBits;
+
     private static int population;
-    private static int generations;
     private static int mutationChance;
-    private static int solutionUpperBound = 64;
+    private static int maxGenerations;
+    private static int qualityUpperBound = 0; // максимум 217341
+
+    private static final Function<Integer, Integer> function = x -> -1 * (x - 8) * (x - 18) * (x - 30) * (x - 58);
+
     private static List<BitSolution> solutions;
 
-
     public static void main(String[] args) {
-        // Инициализация всех необходимых параметров ГА через консоль
-        // requestData(maxBits);
-
-//         Тестовый набор всех необходимых параметров ГА
-        testData(maxBits);
+        initData();
         start();
-
     }
-
-    private static void requestData(int maxBits) {
-        Scanner s = new Scanner(System.in);
-
-        System.out.println("Введите число популяции: ");
-
-        population = Util.getNextInt(1, Integer.MAX_VALUE, s);
-
-        System.out.println("Введите максимальное число поколений: ");
-
-        generations = Util.getNextInt(1, Integer.MAX_VALUE, s);
-
-        System.out.println("Введите шанс мутации от 0 до 100: ");
-
-        mutationChance = Util.getNextInt(0, 100, s);
-
-        System.out.printf("Верхний предел изначального значения \"Решения\": %d\n", solutionUpperBound);
-
-        solutions = SolutionGenerator.generate(population, solutionUpperBound, maxBits);
-    }
-
-    private static void testData(int maxBits) {
-        population = 4;
-        generations = 4;
-        mutationChance = 3;
-        solutions = SolutionGenerator.generate(population, solutionUpperBound, maxBits);
-    }
-
 
     private static void start() {
-        GeneticAlgorithm ga = new GeneticAlgorithm(solutions, mutationChance, population);
+        GeneticAlgorithm ga = new GeneticAlgorithm(
+                solutions,
+                function,
+                mutationChance,
+                population,
+                maxGenerations,
+                qualityUpperBound
+        );
         ga.run();
     }
 
+    private static void initData() {
+        population = 10;
+        maxGenerations = 40;
+        mutationChance = 2;
+        qualityUpperBound = 0;
+        solutions = SolutionGenerator.generate(population, solutionUpperBound, maxBits);
+    }
 
 }

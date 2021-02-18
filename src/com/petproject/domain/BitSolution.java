@@ -3,7 +3,7 @@ package com.petproject.domain;
 import java.util.BitSet;
 import java.util.stream.IntStream;
 
-public class BitSolution extends BitSet implements Comparable<BitSolution> {
+public class BitSolution extends BitSet {
 
     private final int maxBits;
 
@@ -53,6 +53,19 @@ public class BitSolution extends BitSet implements Comparable<BitSolution> {
         return part;
     }
 
+    public void setPart(BitSolution part, int fromIndexInclusive, int toIndexExclusive) {
+        if ((fromIndexInclusive < 0 || fromIndexInclusive > maxBits)
+                || (toIndexExclusive < 0 || toIndexExclusive > maxBits))
+            throw new IllegalArgumentException("indexes must be in range from 0 to " + (maxBits - 1));
+
+        if (fromIndexInclusive > toIndexExclusive)
+            throw new IllegalArgumentException("fromIndexInclusive must be less than toIndexExclusive");
+
+        for (int position = fromIndexInclusive; position < toIndexExclusive; position++) {
+            set(position, part.get(position));
+        }
+    }
+
     public String fullInfo() {
         return String.format("{v: %2d, b: %s}", getValue(), toString());
     }
@@ -62,11 +75,6 @@ public class BitSolution extends BitSet implements Comparable<BitSolution> {
         final StringBuilder sb = new StringBuilder(maxBits);
         IntStream.range(0, maxBits).mapToObj(i -> get(i) ? '1' : '0').forEach(sb::append);
         return sb.reverse().toString();
-    }
-
-    @Override
-    public int compareTo(BitSolution o) {
-        return Integer.compare(o.getValue(), getValue());
     }
 
 }
