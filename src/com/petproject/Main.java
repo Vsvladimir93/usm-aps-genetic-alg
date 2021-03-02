@@ -10,14 +10,13 @@ import java.util.function.Function;
 public class Main {
 
     private static final int maxBits = 6;
-    private static final int solutionUpperBound = 1 << maxBits;
 
-    private static int population;
+    private static int populationSize;
     private static int mutationChance;
     private static int maxGenerations;
-    private static int qualityUpperBound = 0; // максимум 217341
+    private static int qualityUpperBound = 0;
 
-    private static final Function<Integer, Integer> function = x -> -1 * (x - 8) * (x - 18) * (x - 30) * (x - 58);
+    private static final Function<Integer, Long> function = x -> -1L * (x - 8) * (x - 18) * (x - 30) * (x - 58);
 
     private static List<BitSolution> solutions;
 
@@ -31,7 +30,7 @@ public class Main {
                 solutions,
                 function,
                 mutationChance,
-                population,
+                populationSize,
                 maxGenerations,
                 qualityUpperBound
         );
@@ -39,11 +38,14 @@ public class Main {
     }
 
     private static void initData() {
-        population = 10;
+        if (maxBits < 3)
+            throw new IllegalArgumentException("maxBits must be greater or equals 3 !");
+
+        populationSize = 10;
         maxGenerations = 40;
-        mutationChance = 2;
+        mutationChance = 20;
         qualityUpperBound = 0;
-        solutions = SolutionGenerator.generate(population, solutionUpperBound, maxBits);
+        solutions = SolutionGenerator.generate(populationSize, maxBits);
     }
 
 }

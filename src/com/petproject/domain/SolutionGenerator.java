@@ -11,15 +11,17 @@ public class SolutionGenerator {
     private SolutionGenerator() {
     }
 
-    public static List<BitSolution> generate(int population, int upperBound, int maxBits) {
-        if (population <= 0 || upperBound <= 0) {
-            throw new IllegalArgumentException("Population and UpperBound must be greater than 0.");
+    public static List<BitSolution> generate(int population, int maxBits) {
+        if (population <= 0 || maxBits <= 0) {
+            throw new IllegalArgumentException("Population and maxBits must be greater than 0.");
         }
 
-        return generateSolutions(population, upperBound, maxBits);
+        return generateSolutions(population, maxBits);
     }
 
-    private static List<BitSolution> generateSolutions(int population, int upperBound, int maxBits) {
+    private static List<BitSolution> generateSolutions(int population, int maxBits) {
+        int upperBound = 1 << maxBits; // 2 ^ maxBits
+
         return Stream.generate(() -> getRandom().nextInt(upperBound))
                 .limit(population)
                 .map(randomValue -> new BitSolution(maxBits, randomValue))

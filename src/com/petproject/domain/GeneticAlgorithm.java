@@ -13,23 +13,33 @@ import static com.petproject.util.Util.print;
 public class GeneticAlgorithm {
 
     private final int mutationChance;
-    private final int populationQuantity;
+    private final int populationSize;
     private final int maxGenerations;
-    private final int qualityUpperBound;
+    private final long qualityUpperBound;
 
-    private final Function<BitSolution, Integer> function;
+    private final Function<BitSolution, Long> function;
+    private final Comparator<BitSolution> comparator;
 
     private final List<BitSolution> solutions;
 
     private int currentGeneration;
 
-    public GeneticAlgorithm(List<BitSolution> solutions, Function<Integer, Integer> function, int mutationChance, int populationQuantity, int maxGenerations, int qualityUpperBound) {
+    public GeneticAlgorithm(
+            List<BitSolution> solutions,
+            Function<Integer, Long> function,
+            int mutationChance,
+            int populationSize,
+            int maxGenerations,
+            long qualityUpperBound
+    ) {
         this.solutions = solutions;
         this.mutationChance = mutationChance;
-        this.populationQuantity = populationQuantity;
+        this.populationSize = populationSize;
         this.maxGenerations = maxGenerations;
-        this.qualityUpperBound = qualityUpperBound == 0 ? Integer.MAX_VALUE : qualityUpperBound;
+        this.qualityUpperBound = qualityUpperBound == 0 ? Long.MAX_VALUE : qualityUpperBound;
+
         this.function = s -> function.apply(s.getValue());
+        this.comparator = (a, b) -> Long.compare(this.function.apply(b), this.function.apply(a));
     }
 
     public void run() {
@@ -43,7 +53,7 @@ public class GeneticAlgorithm {
 
         Optional<BitSolution> best = findBest(result);
         if (best.isPresent()) {
-            int bestQuality = best.map(function).orElse(0);
+            long bestQuality = best.map(function).orElse(0L);
             print("\nЛучшее Решение: %s - f(x) -> %d", best.get().fullInfo(), bestQuality);
         }
     }
@@ -85,11 +95,11 @@ public class GeneticAlgorithm {
         reduced.forEach(s -> print("%s ", s.fullInfo()));
 
         // Шаг 6.1 - Качество популяции
-        int populationQuality = qualityAll(reduced);
+        long populationQuality = qualityAll(reduced);
         print("\nКачество популяции: %d (среднее значение)", populationQuality);
 
         Optional<BitSolution> best = findBest(reduced);
-        int bestQuality = best.map(function).orElse(0);
+        long bestQuality = best.map(function).orElse(0L);
         print("Лучшее Решение: %s", bestQuality);
 
         List<String> qualityEach = calculateQualityForEach(reduced);
@@ -159,18 +169,17 @@ public class GeneticAlgorithm {
      */
     private List<BitSolution> reduction(List<BitSolution> expandedSolutions) {
         // Сортировка решений в нисходящем порядке по результату вычисления функции
-        Comparator<BitSolution> compare = (a, b) -> function.apply(b) - function.apply(a);
-        expandedSolutions.sort(compare);
+        expandedSolutions.sort(comparator);
 
         // Выборка первых
-        return expandedSolutions.stream().limit(populationQuantity).collect(Collectors.toList());
+        return expandedSolutions.stream().limit(populationSize).collect(Collectors.toList());
     }
 
     /**
      * Качество популяции
      */
-    private int qualityAll(List<BitSolution> reducedSolutions) {
-        return reducedSolutions.stream().map(function).reduce(Integer::sum).orElse(0) / populationQuantity;
+    private long qualityAll(List<BitSolution> reducedSolutions) {
+        return reducedSolutions.stream().map(function).reduce(Long::sum).orElse(0L);
     }
 
     /**
@@ -186,7 +195,7 @@ public class GeneticAlgorithm {
     /**
      * Проверка - Хоть один из критериев завершения выполняется ?
      */
-    private boolean isComplete(List<BitSolution> reduced, int bestQuality) {
+    private boolean isComplete(List<BitSolution> reduced, long bestQuality) {
         if (currentGeneration >= maxGenerations) {
             return true;
         } else if (bestQuality != 0 && bestQuality >= qualityUpperBound) {
@@ -200,8 +209,7 @@ public class GeneticAlgorithm {
     }
 
     private Optional<BitSolution> findBest(List<BitSolution> reducedSolutions) {
-        Comparator<BitSolution> compare = (a, b) -> function.apply(b) - function.apply(a);
-        reducedSolutions.sort(compare);
+        reducedSolutions.sort(comparator);
         return reducedSolutions.stream().findFirst();
     }
 
